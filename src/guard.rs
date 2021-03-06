@@ -35,6 +35,28 @@ impl<'a> SemaphoreGuard<'a> {
     pub fn new(semaphore: &'a Semaphore, amount: usize) -> Self {
         SemaphoreGuard { semaphore, amount, panicking: panicking() }
     }
+
+    /// Combine two `SemaphoreGuard`s into one, with the sum of the originals' permits.
+    ///
+    /// # Examples
+    /// ```
+    /// # use async_weighted_semaphore::Semaphore;
+    /// # tokio_test::block_on(async {
+    /// let semaphore = Semaphore::new(15);
+    /// let mut g1 = semaphore.acquire(10).await.unwrap();
+    /// let g2 = semaphore.acquire(5).await.unwrap();
+    /// g1.extend(g2);
+    /// # })
+    /// ```
+    pub fn extend(&mut self, other: SemaphoreGuard<'a>) {
+        if std::ptr::eq(self.semaphore, other.semaphore) {
+            self.amount += other.forget();
+        } else {
+            self.semaphore.poison();
+            other.semaphore.poison();
+        }
+    }
+
     /// Drop the guard without calling [`Semaphore::release`]. This is useful when `release`s don't
     /// correspond one-to-one with `acquires` or it's difficult to send the guard to the releaser.
     /// # Examples

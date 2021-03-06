@@ -127,6 +127,33 @@ fn test_cancel() {
 }
 
 #[test]
+fn test_extend() {
+    let semaphore = Semaphore::new(15);
+    assert_eq!(semaphore.acquire.load(Relaxed).available(), Some(15));
+    let mut g1 = TestFuture::new(&semaphore, 10).poll().unwrap().unwrap();
+    assert_eq!(semaphore.acquire.load(Relaxed).available(), Some(5));
+    let g2 = TestFuture::new(&semaphore, 5).poll().unwrap().unwrap();
+    assert_eq!(semaphore.acquire.load(Relaxed).available(), Some(0));
+    g1.extend(g2);
+    assert_eq!(semaphore.acquire.load(Relaxed).available(), Some(0));
+    drop(g1);
+    assert_eq!(semaphore.acquire.load(Relaxed).available(), Some(15));
+}
+
+#[test]
+fn test_extend_poison() {
+    let semaphore1 = Semaphore::new(15);
+    let semaphore2 = Semaphore::new(15);
+    let mut g1 = TestFuture::new(&semaphore1, 10).poll().unwrap().unwrap();
+    let g2 = TestFuture::new(&semaphore2, 5).poll().unwrap().unwrap();
+    g1.extend(g2);
+    drop(g1);
+    // At this point, both semaphores should be poisoned
+    TestFuture::new(&semaphore1, 1).poll().unwrap().err().unwrap();
+    TestFuture::new(&semaphore1, 1).poll().unwrap().err().unwrap();
+}
+
+#[test]
 fn test_leak() {
     let semaphore = Semaphore::new(1);
     let mut a1 = TestFuture::new(&semaphore, 2);
