@@ -142,6 +142,13 @@ impl SemaphoreGuardArc {
         mem::forget(self);
         amount
     }
+
+    /// Split this `SemaphoreGuard` into two.
+    ///
+    /// The new guard will have `permits` permits, and this guard's permits will 
+    pub fn split(&mut self, permits: usize) => Result<SemaphoreGuard<'a>, ()> {
+        unimplemented!()
+    }
 }
 
 
